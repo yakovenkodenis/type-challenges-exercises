@@ -1,6 +1,12 @@
+// Modules
 import { useEffect, useRef, useCallback } from 'react';
 import Editor, { useMonaco, type OnMount, type OnValidate } from '@monaco-editor/react';
 import styled from '@emotion/styled';
+
+// Services
+import { saveChallengeProgress } from '../../services/persistence';
+
+// Utils
 import type { File, Directory } from '../../utils/file-manager';
 
 type Props = {
@@ -16,6 +22,15 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
   }
+
+  const handleChange = useCallback(
+    async (value?: string) => {
+      if (selectedFile && value !== undefined) {
+        await saveChallengeProgress(selectedFile.id, value); // Save progress to localForage
+      }
+    },
+    [selectedFile]
+  );
 
   useEffect(() => {
     if (!monaco) return;
@@ -152,6 +167,7 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
     <Div>
       <Editor
         height='100vh'
+        onChange={handleChange}
         language={language}
         defaultLanguage='typescript'
         path={`inmemory://model/${selectedFile.name}`}

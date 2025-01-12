@@ -15,7 +15,11 @@ import { useChallenges } from '../../context/challenges';
 
 // Utils
 import { findFileByName, Type, type File, type Directory } from '../../utils/file-manager';
-import { typeChallenges } from '../../utils/tmp-tree';
+import { challengeToDir } from '../../utils/challenge-to-dir';
+
+// Services
+import { fetchChallenge, MainFolder } from '../../services/challenges';
+import { getChallenge, saveChallenge } from '../../services/persistence';
 
 const dummyDir: Directory = {
   id: '1',
@@ -28,20 +32,29 @@ const dummyDir: Directory = {
 };
 
 const Challenge = () => {
-  const { challengeId } = useParams<{ challengeId: string }>();
-  const [rootDir, setRootDir] = useState(dummyDir);
+  const { challengeId } = useParams<{ challengeId: string; }>();
+  const [rootDir, setRootDir] = useState<Directory>(dummyDir);
   const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
   const [errors, setErrors] = useState<string[]>([]);
 
-  const { isLoading, challenges } = useChallenges();
-
-  console.log({ challenges });
+  const { isLoading } = useChallenges();
 
   useEffect(() => {
-    const root = typeChallenges[Number(challengeId) - 1];
+    const loadChallenge = async () => {
+      const path = `${MainFolder}/${challengeId}`;
 
-    setRootDir(root);
-    setSelectedFile(findFileByName(root, 'challenge.ts'));
+      let challenge = await getChallenge(path);
+      if (!challenge) {
+        challenge = await fetchChallenge(`${MainFolder}/${challengeId}`);
+        await saveChallenge(challenge);
+      }
+
+      const dir = challengeToDir(challenge);
+      setRootDir(dir);
+      setSelectedFile(findFileByName(dir, 'template.ts'));
+    }
+
+    loadChallenge();
   }, [challengeId]);
 
   const onSelect = useCallback((file: File) => setSelectedFile(file), []);

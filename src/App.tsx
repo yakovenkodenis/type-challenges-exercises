@@ -8,9 +8,6 @@ import { Drawer } from './components/drawer';
 import { Header } from './components/header';
 import { Challenge } from './components/challenge';
 
-// Utils
-import { typeChallenges } from './utils/tmp-tree';
-
 // Styles
 import './App.css';
 
@@ -22,8 +19,8 @@ const App = () => {
   const toggleDrawer = () => setDrawerOpen(!isDrawerOpen);
   const closeDrawer = () => setDrawerOpen(false);
 
-  const navigateToChallenge = useCallback((challengeId: string | number) => {
-    navigate(`/challenge/${Number(challengeId) + 1}`);
+  const navigateToChallenge = useCallback((challengeId: string) => {
+    navigate(`/challenge/${challengeId}`);
   }, [navigate]);
 
   return (
@@ -31,16 +28,15 @@ const App = () => {
       <Header toggleDrawer={toggleDrawer} />
       <Main>
         <Routes>
-          <Route path="/challenge/:challengeId" element={<Challenge />} />
+          <Route path="/challenge/:folder/:challengeId" element={<Challenge />} />
           <Route
             path="*"
-            element={<Navigate to="/challenge/1" replace={true} />}
+            element={<Navigate to="/challenge/questions/00002-medium-return-type" replace={true} />}
           />
         </Routes>
         <Drawer
           isOpen={isDrawerOpen}
           close={closeDrawer}
-          challenges={typeChallenges}
           onLogin={() => { console.log('login') }}
           onLogout={() => { console.log('logout') }}
           onSelectChallenge={navigateToChallenge}

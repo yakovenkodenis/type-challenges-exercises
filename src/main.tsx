@@ -15,6 +15,10 @@ import './index.css'
 // Service workers
 import './worker';
 
+if (import.meta.env.MODE === 'development') {
+  import('@locator/runtime').then((setupLocatorUI) => setupLocatorUI.default());
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Router>

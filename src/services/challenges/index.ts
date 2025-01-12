@@ -1,4 +1,5 @@
-const GITHUB_API_URL = 'https://api.github.com/repos/type-challenges/type-challenges/contents/questions';
+export const MainFolder = 'questions';
+const GITHUB_API_URL = `https://api.github.com/repos/type-challenges/type-challenges/contents/${MainFolder}`;
 
 export type Challenge = {
   id: string;
@@ -11,47 +12,56 @@ export type Challenge = {
   };
 };
 
-export const fetchChallenges = async (): Promise<Challenge[]> => {
-  const response = await fetch(GITHUB_API_URL);
-  const data = await response.json();
-
-  console.log(data);
-
-  // return await Promise.all(
-  //   data.map(async (file: { name: string; path: string }) => {
-  //     const challengeResponse = await fetch(
-  //       `https://api.github.com/repos/type-challenges/type-challenges/contents/${file.path}`
-  //     );
-  //     const challengeFiles = await challengeResponse.json();
-
-  //     const fetchFileContent = async (filePath: string) => {
-  //       const fileResponse = await fetch(filePath);
-  //       return await fileResponse.text();
-  //     };
-
-  //     const template = await fetchFileContent(
-  //       challengeFiles.find((f: { name: string }) => f.name === 'template.ts').download_url
-  //     );
-  //     const testCases = await fetchFileContent(
-  //       challengeFiles.find((f: { name: string }) => f.name === 'test-cases.ts').download_url
-  //     );
-  //     const readme = await fetchFileContent(
-  //       challengeFiles.find((f: { name: string }) => f.name === 'README.md').download_url
-  //     );
-
-  //     return {
-  //       id: file.name,
-  //       name: file.name.replace(/^\d+-/, '').replace(/-/g, ' '),
-  //       difficulty: getDifficultyFromName(file.name),
-  //       files: { template, testCases, readme },
-  //     };
-  //   })
-  // );
+export type ChallengeMetadata = {
+  name: string;
+  path: string;
+  sha: string;
+  size: number;
+  url: string;
+  html_url: string;
+  git_url: string;
+  download_url: string | null;
+  type: 'dir' | 'file';
+  _links: string[];
 };
 
-const getDifficultyFromName = (name: string): Challenge['difficulty'] => {
-  if (name.includes('easy')) return 'easy';
-  if (name.includes('medium')) return 'medium';
-  if (name.includes('hard')) return 'hard';
+export type GroupedChallengeMetadata = Record<Challenge['difficulty'], ChallengeMetadata[]>;
+
+export const fetchChallengesMetadata = async (): Promise<ChallengeMetadata[]> => {
+  const response = await fetch(GITHUB_API_URL);
+  const challengesMetadata = await response.json();
+  return challengesMetadata as ChallengeMetadata[];
+};
+
+const getFileContentUrl = (path: string, file: string) => `https://raw.githubusercontent.com/type-challenges/type-challenges/main/${path}/${file}`;
+
+export const fetchChallenge = async (path: ChallengeMetadata['path']): Promise<Challenge> => {
+  const files = ['README.md', 'template.ts', 'test-cases.ts'];
+
+  const [readme, template, testCases] = await Promise.all(files.map(async (file) => {
+    const url = getFileContentUrl(path, file);
+
+    try {
+      const res = await fetch(url);
+      return await res.text();
+    } catch {
+      return '';
+    }
+  }));
+
+  const [, name] = path.split('/');
+
+  return {
+    id: name,
+    name: name.replace(/^\d+-/, '').replace(/-/g, ' '),
+    difficulty: getDifficultyFromName(name),
+    files: { template, testCases, readme },
+  };
+}
+
+export const getDifficultyFromName = (name: string): Challenge['difficulty'] => {
+  if (name.includes('-easy-')) return 'easy';
+  if (name.includes('-medium-')) return 'medium';
+  if (name.includes('-hard-')) return 'hard';
   return 'extreme';
 };

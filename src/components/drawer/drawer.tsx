@@ -1,40 +1,72 @@
+// Modules
+import { useEffect, useState, useCallback } from 'react';
 import styled from '@emotion/styled';
 import { FaSignOutAlt, FaSignInAlt } from 'react-icons/fa';
+
+// Components
+import { FileTree } from '../file-tree';
+
+// Context
+import { useChallenges } from '../../context/challenges';
+
+// Utils
+import { Type, type File, type Directory } from '../../utils/file-manager';
+import { challengesMetadataToDir } from '../../utils/challenges-metadata-to-dir';
 
 type User = {
   avatar: string;
   email: string;
 };
 
-type Challenge = {
-  challengeId: number;
-  challengeName: string;
-};
-
 type Props = {
   user: User | null;
-  challenges: Challenge[];
   close: () => void;
   onLogin: () => void;
   onLogout: () => void;
-  onSelectChallenge: (id: string | number) => void;
+  onSelectChallenge: (id: string) => void;
 
   isOpen: boolean;
 };
 
-const EMPTY_ARRAY: Array<Challenge> = [];
 const noop = () => {};
+
+const dummyDir: Directory = {
+  id: '1',
+  name: 'fetching challenges...',
+  type: Type.DUMMY,
+  parentId: undefined,
+  depth: 0,
+  dirs: [],
+  files: [],
+};
 
 export default function DrawerContainer(props: Props) {
   const {
     user,
     isOpen,
     close = noop,
-    challenges = EMPTY_ARRAY,
     onLogin = noop,
     onLogout = noop,
     onSelectChallenge = noop,
   } = props;
+
+  const { groupedChallengesMetadata } = useChallenges();
+
+  const [rootDir, setRootDir] = useState<Directory>(dummyDir);
+  const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
+
+  const onSelect = useCallback((file: File) => {
+    setSelectedFile(file);
+    onSelectChallenge(file.id);
+    close();
+  }, [close, onSelectChallenge]);
+
+  useEffect(() => {
+    if (groupedChallengesMetadata) {
+      const dir = challengesMetadataToDir(groupedChallengesMetadata);
+      setRootDir(dir);
+    }
+  }, [groupedChallengesMetadata]);
 
   return (
     <>
@@ -43,7 +75,7 @@ export default function DrawerContainer(props: Props) {
         <DrawerHeader>
           {user ? (
             <>
-              <Avatar src={user.avatar} alt="User Avatar" />
+              <Avatar src={user.avatar} alt='User Avatar' />
               <Email>{user.email}</Email>
               <ActionButton onClick={onLogout}>
                 <FaSignOutAlt /> Logout
@@ -57,17 +89,18 @@ export default function DrawerContainer(props: Props) {
         </DrawerHeader>
         <DrawerContent>
           <DrawerTitle>Challenges</DrawerTitle>
-          <ChallengeList>
-            {challenges.map((challenge) => (
-              <ChallengeItem key={challenge.challengeName} onClick={() => onSelectChallenge(challenge.challengeId)}>
-                {challenge.challengeName}
-              </ChallengeItem>
-            ))}
-          </ChallengeList>
+          {rootDir ? (
+            <FileTree
+              rootDir={rootDir}
+              onSelect={onSelect}
+              selectedFile={selectedFile}
+              overrideSubTreeStyle={{ 0: () => ({ marginLeft: '-16px' }) }}
+            />
+          ) : null}
         </DrawerContent>
       </Drawer>
     </>
-  )
+  );
 }
 
 const Backdrop = styled.div`
@@ -91,6 +124,8 @@ const Drawer = styled.div<{ isOpen: boolean }>`
   transform: translateX(${(props) => (props.isOpen ? '0' : '100%')});
   transition: transform 0.3s ease;
   z-index: 20;
+  display: grid;
+  grid-template-rows: auto 1fr;
 `;
 
 const DrawerHeader = styled.div`
@@ -142,23 +177,3 @@ const DrawerTitle = styled.h3`
   color: #d4d4d4;
   margin-bottom: 12px;
 `;
-
-const ChallengeList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const ChallengeItem = styled.li`
-  padding: 8px 12px;
-  background: #3c3c3c;
-  margin-bottom: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #d4d4d4;
-
-  &:hover {
-    background: #555555;
-  }
-`;
-

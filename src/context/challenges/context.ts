@@ -1,8 +1,9 @@
 import { createContext } from 'react';
-import { type Challenge } from '../../services/challenges';
+import { type ChallengeMetadata, type GroupedChallengeMetadata } from '../../services/challenges';
 
 type ChallengesContextValue = {
-  challenges: Challenge[];
+  challengesMetadata: ChallengeMetadata[];
+  groupedChallengesMetadata: GroupedChallengeMetadata
   progress: Record<string, string>;
   isLoading: boolean;
 };

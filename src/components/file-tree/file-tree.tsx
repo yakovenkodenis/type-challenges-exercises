@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type CSSProperties } from 'react';
 import styled from '@emotion/styled';
 import { type Directory, type File, sortDir, sortFile } from '../../utils/file-manager';
 import { getIcon } from '../icon';
@@ -7,6 +7,7 @@ interface FileTreeProps {
   rootDir: Directory;
   selectedFile: File | undefined;
   onSelect: (file: File) => void;
+  overrideSubTreeStyle?: Record<Directory['depth'], () =>  CSSProperties>;
 }
 
 export const FileTree = (props: FileTreeProps) => {
@@ -17,11 +18,15 @@ interface SubTreeProps {
   directory: Directory;
   selectedFile: File | undefined;
   onSelect: (file: File) => void;
+  overrideSubTreeStyle?: Record<Directory['depth'], () =>  CSSProperties>;
 }
 
 const SubTree = (props: SubTreeProps) => {
+  const { overrideSubTreeStyle } = props;
+  const style = overrideSubTreeStyle?.[props.directory.depth]?.() ?? {};
+
   return (
-    <div>
+    <div style={style}>
       {props.directory.dirs.sort(sortDir).map((dir) => (
         <Fragment key={dir.id}>
           <DirDiv directory={dir} selectedFile={props.selectedFile} onSelect={props.onSelect} />

@@ -1,9 +1,31 @@
 import localForage from 'localforage';
+import type { ChallengeMetadata, Challenge } from '../challenges';
 
 const progressDb = localForage.createInstance({
   name: 'type-challenges',
   storeName: 'progress',
 });
+
+const initialDataDb = localForage.createInstance({
+  name: 'type-challenges',
+  storeName: 'initial-data',
+});
+
+export const saveChallengesMetadata = async (challengesMetadata: ChallengeMetadata[]) => {
+  await initialDataDb.setItem('challenges-metadata', challengesMetadata);
+}
+
+export const getChallengesMetadata = async (): Promise<ChallengeMetadata[] | null> => {
+  return await initialDataDb.getItem<ChallengeMetadata[]>('challenges-metadata');
+}
+
+export const saveChallenge = async (challenge: Challenge) => {
+  await initialDataDb.setItem(challenge.id, challenge);
+}
+
+export const getChallenge = async (id: Challenge['id']): Promise<Challenge | null> => {
+  return await initialDataDb.getItem<Challenge>(id);
+}
 
 export const saveChallengeProgress = async (challengeId: string, content: string) => {
   await progressDb.setItem(challengeId, content);
