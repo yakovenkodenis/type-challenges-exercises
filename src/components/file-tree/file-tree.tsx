@@ -7,6 +7,7 @@ interface FileTreeProps {
   rootDir: Directory;
   selectedFile: File | undefined;
   onSelect: (file: File) => void;
+  sortDirectories?: boolean;
   overrideSubTreeStyle?: Record<Directory['depth'], () =>  CSSProperties>;
 }
 
@@ -18,21 +19,24 @@ interface SubTreeProps {
   directory: Directory;
   selectedFile: File | undefined;
   onSelect: (file: File) => void;
+  sortDirectories?: boolean;
   overrideSubTreeStyle?: Record<Directory['depth'], () =>  CSSProperties>;
 }
 
 const SubTree = (props: SubTreeProps) => {
-  const { overrideSubTreeStyle } = props;
+  const { overrideSubTreeStyle, sortDirectories = true } = props;
   const style = overrideSubTreeStyle?.[props.directory.depth]?.() ?? {};
+
+  const { directory: { dirs, files } } = props;
 
   return (
     <div style={style}>
-      {props.directory.dirs.sort(sortDir).map((dir) => (
+      {(sortDirectories ? dirs.sort(sortDir) : dirs).map((dir) => (
         <Fragment key={dir.id}>
           <DirDiv directory={dir} selectedFile={props.selectedFile} onSelect={props.onSelect} />
         </Fragment>
       ))}
-      {props.directory.files.sort(sortFile).map((file) => (
+      {files.sort(sortFile).map((file) => (
         <Fragment key={file.id}>
           <FileDiv file={file} selectedFile={props.selectedFile} onClick={() => props.onSelect(file)} />
         </Fragment>

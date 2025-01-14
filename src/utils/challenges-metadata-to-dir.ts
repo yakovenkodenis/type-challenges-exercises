@@ -1,7 +1,8 @@
 import type { GroupedChallengeMetadata } from '../services/challenges';
 import { type Directory, Type } from './file-manager';
+import { type DifficultyLevel, DifficultyLevels } from '../constants/difficulty-levels';
 
-const makeDirectory = (name: keyof GroupedChallengeMetadata, challenges: GroupedChallengeMetadata[keyof GroupedChallengeMetadata]): Directory => ({
+const makeDirectory = (name: DifficultyLevel, challenges: GroupedChallengeMetadata[DifficultyLevel]): Directory => ({
   name,
   id: name,
   parentId: '0',
@@ -20,10 +21,11 @@ const makeDirectory = (name: keyof GroupedChallengeMetadata, challenges: Grouped
 
 export const challengesMetadataToDir = (challengesMetadata: GroupedChallengeMetadata): Directory => {
   const dirs = [
-    makeDirectory('easy', challengesMetadata.easy),
-    makeDirectory('medium', challengesMetadata.medium),
-    makeDirectory('hard', challengesMetadata.hard),
-    makeDirectory('extreme', challengesMetadata.extreme),
+    makeDirectory(DifficultyLevels.warm, challengesMetadata.warm),
+    makeDirectory(DifficultyLevels.easy, challengesMetadata.easy),
+    makeDirectory(DifficultyLevels.medium, challengesMetadata.medium),
+    makeDirectory(DifficultyLevels.hard, challengesMetadata.hard),
+    makeDirectory(DifficultyLevels.extreme, challengesMetadata.extreme),
   ];
 
   return {

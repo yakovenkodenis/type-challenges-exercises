@@ -1,10 +1,14 @@
+// Constants
+import { ChallengeFiles } from '../../constants/challenge-files';
+import { type DifficultyLevel, DifficultyLevels } from '../../constants/difficulty-levels';
+
 export const MainFolder = 'questions';
 const GITHUB_API_URL = `https://api.github.com/repos/type-challenges/type-challenges/contents/${MainFolder}`;
 
 export type Challenge = {
   id: string;
   name: string;
-  difficulty: 'easy' | 'medium' | 'hard' | 'extreme';
+  difficulty: DifficultyLevel;
   files: {
     template: string;
     testCases: string;
@@ -36,7 +40,7 @@ export const fetchChallengesMetadata = async (): Promise<ChallengeMetadata[]> =>
 const getFileContentUrl = (path: string, file: string) => `https://raw.githubusercontent.com/type-challenges/type-challenges/main/${path}/${file}`;
 
 export const fetchChallenge = async (path: ChallengeMetadata['path']): Promise<Challenge> => {
-  const files = ['README.md', 'template.ts', 'test-cases.ts'];
+  const files = [ChallengeFiles.readme, ChallengeFiles.template, ChallengeFiles.testCases];
 
   const [readme, template, testCases] = await Promise.all(files.map(async (file) => {
     const url = getFileContentUrl(path, file);
@@ -59,9 +63,10 @@ export const fetchChallenge = async (path: ChallengeMetadata['path']): Promise<C
   };
 }
 
-export const getDifficultyFromName = (name: string): Challenge['difficulty'] => {
-  if (name.includes('-easy-')) return 'easy';
-  if (name.includes('-medium-')) return 'medium';
-  if (name.includes('-hard-')) return 'hard';
-  return 'extreme';
+export const getDifficultyFromName = (name: string): DifficultyLevel => {
+  if (name.includes('-warm-')) return DifficultyLevels.warm;
+  if (name.includes('-easy-')) return DifficultyLevels.easy;
+  if (name.includes('-medium-')) return DifficultyLevels.medium;
+  if (name.includes('-hard-')) return DifficultyLevels.hard;
+  return DifficultyLevels.extreme;
 };

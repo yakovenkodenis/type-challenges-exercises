@@ -1,10 +1,7 @@
 // Modules
 import { useEffect, useRef, useCallback } from 'react';
-import Editor, { useMonaco, type OnMount, type OnValidate } from '@monaco-editor/react';
+import Editor, { useMonaco, type OnMount, type OnValidate, type OnChange } from '@monaco-editor/react';
 import styled from '@emotion/styled';
-
-// Services
-import { saveChallengeProgress } from '../../services/persistence';
 
 // Utils
 import type { File, Directory } from '../../utils/file-manager';
@@ -13,24 +10,16 @@ type Props = {
   selectedFile: File | undefined;
   rootDir: Directory;
   onValidate: OnValidate;
+  onChange: OnChange;
 };
 
-export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
+export const CodeEditor = ({ selectedFile, rootDir, onValidate, onChange }: Props) => {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monaco = useMonaco();
 
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
   }
-
-  const handleChange = useCallback(
-    async (value?: string) => {
-      if (selectedFile && value !== undefined) {
-        await saveChallengeProgress(selectedFile.id, value); // Save progress to localForage
-      }
-    },
-    [selectedFile]
-  );
 
   useEffect(() => {
     if (!monaco) return;
@@ -68,6 +57,7 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
         module: monaco.languages.typescript.ModuleKind.CommonJS,
         noEmit: true,
         strict: true,
+        lib: ['esnext'],
         typeRoots: ['node_modules/@types'],
         baseUrl: '.',
         paths: {
@@ -78,50 +68,51 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
         noUnusedParameters: false,
       });
   
-    // Load TypeScript standard library types
-    const libFiles = [
-      'lib.d.ts', // Core types
-    ];
-  
-    await Promise.all(
-      libFiles.map((lib) =>
-        fetch(`https://unpkg.com/typescript@latest/lib/${lib}`)
-          .then((response) => response.text())
-          .then((libContent) => {
-            monaco.languages.typescript.typescriptDefaults.addExtraLib(libContent, `inmemory://model/${lib}`);
-          })
-          .catch((err) => console.error(`Failed to load ${lib}:`, err))
-      )
-    );
-  
-    // Register definition provider
-    monaco.languages.registerDefinitionProvider('typescript', {
-      async provideDefinition(model, position) {
-        const worker = await monaco.languages.typescript.getTypeScriptWorker();
-        const tsWorker = await worker(model.uri);
+      // Load TypeScript standard library types
+      const libFiles = [
+        'lib.d.ts',
+        'lib.esnext.d.ts',
+      ];
     
-        // Get the definition at the given position
-        const definitions = await tsWorker.getDefinitionAtPosition(
-          model.uri.toString(),
-          model.getOffsetAt(position)
-        );
+      await Promise.all(
+        libFiles.map((lib) =>
+          fetch(`https://unpkg.com/typescript@latest/lib/${lib}`)
+            .then((response) => response.text())
+            .then((libContent) => {
+              monaco.languages.typescript.typescriptDefaults.addExtraLib(libContent, `inmemory://model/${lib}`);
+            })
+            .catch((err) => console.error(`Failed to load ${lib}:`, err))
+        )
+      );
     
-        if (!definitions || definitions.length === 0) {
-          return null;
-        }
-    
-        // Convert TypeScript definitions to Monaco definitions
-        return definitions.map((definition) => ({
-          uri: monaco.Uri.parse(definition.fileName),
-          range: new monaco.Range(
-            definition.textSpan.startLine + 1,
-            definition.textSpan.startColumn + 1,
-            definition.textSpan.startLine + 1,
-            definition.textSpan.startColumn + definition.textSpan.length + 1
-          ),
-        }));
-      },
-    });
+      // Register definition provider
+      monaco.languages.registerDefinitionProvider('typescript', {
+        async provideDefinition(model, position) {
+          const worker = await monaco.languages.typescript.getTypeScriptWorker();
+          const tsWorker = await worker(model.uri);
+      
+          // Get the definition at the given position
+          const definitions = await tsWorker.getDefinitionAtPosition(
+            model.uri.toString(),
+            model.getOffsetAt(position)
+          );
+      
+          if (!definitions || definitions.length === 0) {
+            return null;
+          }
+      
+          // Convert TypeScript definitions to Monaco definitions
+          return definitions.map((definition) => ({
+            uri: monaco.Uri.parse(definition.fileName),
+            range: new monaco.Range(
+              definition.textSpan.startLine + 1,
+              definition.textSpan.startColumn + 1,
+              definition.textSpan.startLine + 1,
+              definition.textSpan.startColumn + definition.textSpan.length + 1
+            ),
+          }));
+        },
+      });
 
       monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
     }
@@ -138,7 +129,7 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
   useEffect(() => {
     if (!editorRef.current || !monaco || !selectedFile) return;
     const editorModel = monaco.editor.getModel(monaco.Uri.parse(`inmemory://model/${selectedFile?.name}`));
-    console.log('----', editorModel);
+
     if (editorModel) {
       editorRef.current.setModel(editorModel);
     } else {
@@ -167,7 +158,7 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate }: Props) => {
     <Div>
       <Editor
         height='100vh'
-        onChange={handleChange}
+        onChange={onChange}
         language={language}
         defaultLanguage='typescript'
         path={`inmemory://model/${selectedFile.name}`}

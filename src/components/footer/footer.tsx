@@ -1,22 +1,39 @@
+// Modules
 import { type FC, useEffect, useState, useRef, useCallback } from 'react';
 import styled from '@emotion/styled';
 
+// Constants
+import { type ChallengeStatus, ChallengeStatuses } from '../../constants/challenge-status';
+
+// Context
+import { useCurrentChallenge } from '../../context/current-challenge';
+
 type Props = {
   errors?: string[];
-  challengeStatus?: 'success' | 'error';
+  challengeStatus?: ChallengeStatus;
   isLoading: boolean;
+  goToNextChallenge: () => void;
 };
 
+const EMPTY_ARRAY: string[] = [];
+const noop = () => {};
+
 const Footer: FC<Props> = (props) => {
-  const { errors = [], challengeStatus = 'success', isLoading = false } = props;
+  const {
+    errors = EMPTY_ARRAY,
+    challengeStatus = ChallengeStatuses.unavailable,
+    isLoading = false,
+    goToNextChallenge = noop,
+  } = props;
+
+  const { challengeId } = useCurrentChallenge();
 
   const [height, setHeight] = useState(150); // Default height in pixels
   const [isDragging, setIsDragging] = useState(false);
 
   const footerRef = useRef<HTMLDivElement>(null);
 
-  const currentChallenge = location.pathname.split('/')[2];
-  const isError = challengeStatus === 'error';
+  const isError = challengeStatus === ChallengeStatuses.error;
 
   // Mouse event handlers for resizing
   const startDrag = (e: React.MouseEvent) => {
@@ -52,17 +69,19 @@ const Footer: FC<Props> = (props) => {
 
       <div className="footer-content">
         <div className="path">
-          <span className="terminal-text">~/type-challenges/challenge-{currentChallenge}:</span>
+          <span className="terminal-text">~/type-challenges/{challengeId ?? 'challenge'}:</span>
         </div>
 
         <div className="terminal-text">
-          {challengeStatus === 'success' ? (
+          {challengeStatus === ChallengeStatuses.success ? (
             <>
               <span>success!</span>
-              <NextChallengeButton onClick={() => alert('Go to next challenge')}>
+              <NextChallengeButton onClick={goToNextChallenge}>
                 Next Challenge →
               </NextChallengeButton>
             </>
+          ) : challengeStatus === ChallengeStatuses.unavailable ? (
+            <div className="terminal-text">Try to complete the challenge!</div>
           ) : isLoading ? (
             <div className="terminal-text">Cloning challenges... [===={'>'}       ]</div>
           ) : (

@@ -1,6 +1,10 @@
 // Assets
 import testUtilsContentString from '../assets/test-utils?raw';
 
+// Constants
+import { ChallengeFiles } from '../constants/challenge-files';
+
+
 import type { Challenge } from '../services/challenges';
 import { type Directory, type File, Type } from './file-manager';
 
@@ -28,10 +32,16 @@ ${template}
 
 // ========== TEST CASES (do not edit) ==========
 ${testCases}
-  `;
+`.trimStart();
 };
 
-export const challengeToDir = (challenge: Challenge): Directory => {
+type ChangeToDirOptions = {
+  concatTestCases?: boolean;
+};
+
+export const challengeToDir = (challenge: Challenge, options?: ChangeToDirOptions): Directory => {
+  const { concatTestCases = true } = options ?? {};
+
   const {
     id,
     name,
@@ -55,9 +65,9 @@ export const challengeToDir = (challenge: Challenge): Directory => {
       depth: 1,
       dirs: [],
       files: [
-        makeFile({ name: 'README.md', content: readme, depth: 2, parentId: id }),
-        makeFile({ name: 'template.ts', content: combine(template, testCases), depth: 2, parentId: id }),
-        makeFile({ name: 'test-utils.ts', content: testUtilsContentString, depth: 2, parentId: id }),
+        makeFile({ name: ChallengeFiles.readme, content: readme, depth: 2, parentId: id }),
+        makeFile({ name: ChallengeFiles.template, content: concatTestCases ? combine(template, testCases) : template, depth: 2, parentId: id }),
+        makeFile({ name: ChallengeFiles.testUtils, content: testUtilsContentString, depth: 2, parentId: id }),
       ],
     }]
   }

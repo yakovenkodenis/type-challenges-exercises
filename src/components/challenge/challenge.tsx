@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router';
-import { type OnValidate } from '@monaco-editor/react';
+import { useEffect, useState, useCallback, memo, type FC } from 'react';
+import { useParams, useNavigate } from 'react-router';
+import { type OnChange, type OnValidate } from '@monaco-editor/react';
 import styled from '@emotion/styled';
 
 // Components
@@ -12,67 +12,121 @@ import { MarkdownPreview } from '../markdown-preview';
 
 // Context
 import { useChallenges } from '../../context/challenges';
+import { useCurrentChallenge } from '../../context/current-challenge';
+
+// Constants
+import { ChallengeFiles } from '../../constants/challenge-files';
+import { ChallengeStatuses } from '../../constants/challenge-status';
 
 // Utils
-import { findFileByName, Type, type File, type Directory } from '../../utils/file-manager';
+import { findFileByName, type File, } from '../../utils/file-manager';
 import { challengeToDir } from '../../utils/challenge-to-dir';
 
 // Services
-import { fetchChallenge, MainFolder } from '../../services/challenges';
-import { getChallenge, saveChallenge } from '../../services/persistence';
+import { MainFolder } from '../../services/challenges';
+import { getChallengeFromCache } from '../../services/challenge-cache';
+import { getChallengeProgress, saveChallengeProgress } from '../../services/persistence';
 
-const dummyDir: Directory = {
-  id: '1',
-  name: 'loading...',
-  type: Type.DUMMY,
-  parentId: undefined,
-  depth: 0,
-  dirs: [],
-  files: [],
-};
-
-const Challenge = () => {
+const Challenge: FC = () => {
   const { challengeId } = useParams<{ challengeId: string; }>();
-  const [rootDir, setRootDir] = useState<Directory>(dummyDir);
-  const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
+  const [templateFileContent, setTemplateFileContent] = useState<string>();
   const [errors, setErrors] = useState<string[]>([]);
 
-  const { isLoading } = useChallenges();
+  const navigate = useNavigate();
+
+  const {
+    rootDir, setRootDir,
+    selectedFile, setSelectedFile,
+    challengeStatus, setChallengeStatus,
+    setChallengeId,
+  } = useCurrentChallenge();
+
+  const { isLoading, challengesMetadataLinkedMap, recalculateStatistics } = useChallenges();
+
+  useEffect(() => {
+    if (challengeId) setChallengeId(challengeId);
+  }, [challengeId, setChallengeId]);
 
   useEffect(() => {
     const loadChallenge = async () => {
+      if (!challengeId) return;
+
       const path = `${MainFolder}/${challengeId}`;
 
-      let challenge = await getChallenge(path);
-      if (!challenge) {
-        challenge = await fetchChallenge(`${MainFolder}/${challengeId}`);
-        await saveChallenge(challenge);
+      const [
+        challenge,
+        challengeProgress,
+      ] = await Promise.all([
+        getChallengeFromCache(path),
+        getChallengeProgress(challengeId),
+      ]);
+
+      if (challengeProgress) {
+        challenge.files.template = challengeProgress.content;
+
+        if (challengeProgress.completed) {
+          setChallengeStatus(ChallengeStatuses.success);
+        }
       }
 
-      const dir = challengeToDir(challenge);
+      const dir = challengeToDir(challenge, { concatTestCases: challengeProgress?.content === undefined });
       setRootDir(dir);
-      setSelectedFile(findFileByName(dir, 'template.ts'));
+      setSelectedFile(findFileByName(dir, ChallengeFiles.template));
     }
 
     loadChallenge();
-  }, [challengeId]);
+  }, [challengeId, setRootDir, setChallengeStatus, setSelectedFile]);
 
-  const onSelect = useCallback((file: File) => setSelectedFile(file), []);
+  const onSelect = useCallback((file: File) => setSelectedFile(file), [setSelectedFile]);
 
-  const onValidate: OnValidate = useCallback((markers) => {
-    setErrors(
-      markers
-        .filter((marker) => !['6205', '6196'].includes(marker.code as string))
-        .map((marker) => `line ${marker.startLineNumber}: ${marker.message} (.${marker.resource.path})`)
-    );
-  }, []);
+  const onValidate: OnValidate = useCallback(async (markers) => {
+    const errors = markers
+      .filter((marker) => !['6205', '6196'].includes(marker.code as string))
+      .map((marker) => `line ${marker.startLineNumber}: ${marker.message} (.${marker.resource.path})`);
 
-  if (!challengeId) {
-    return <div>Challenge not selected (wrong route)</div>;
-  }
+    setErrors(errors);
 
-  if (!selectedFile) {
-    return <div>Loading challenge...</div>;
+    const hasErrors = !!errors.length;
+
+    if (selectedFile?.name === ChallengeFiles.template && selectedFile?.parentId) {
+      setChallengeStatus(hasErrors ? ChallengeStatuses.error : ChallengeStatuses.success);
+
+      if (templateFileContent) {
+        await saveChallengeProgress(selectedFile.parentId, {
+          content: templateFileContent,
+          completed: !hasErrors,
+        });
+
+        await recalculateStatistics();
+      }
+    }
+  }, [recalculateStatistics, setChallengeStatus, selectedFile, templateFileContent]);
+
+  const onChange: OnChange = useCallback(async (value) => {
+    if (!challengeId) return;
+    if (value === undefined || !selectedFile || !selectedFile.parentId) return;
+    if (selectedFile.name !== ChallengeFiles.template) return;
+
+    setTemplateFileContent(value);
+  }, [challengeId, selectedFile]);
+
+  const goToNextChallenge = useCallback(() => {
+    if (!challengeId) return;
+
+    const currentChallengeMetadata = challengesMetadataLinkedMap[challengeId];
+    const nextChallengeName = currentChallengeMetadata?.next;
+
+    if (nextChallengeName) {
+      setChallengeStatus(ChallengeStatuses.unavailable);
+      setTemplateFileContent(undefined);
+      navigate(`/challenge/${MainFolder}/${nextChallengeName}`);
+    } else {
+      alert("You've reached the end of the list. Congratulations!");
+    }
+  }, [challengesMetadataLinkedMap, challengeId, navigate, setChallengeStatus]);
+
+  if (!challengeId || !selectedFile) {
+    return <div>Challenge not selected </div>;
   }
 
   if (!rootDir) {
@@ -88,9 +142,14 @@ const Challenge = () => {
         {selectedFile.name.endsWith('.md') ? (
           <MarkdownPreview content={selectedFile.content} />
         ) : (
-          <CodeEditor selectedFile={selectedFile} rootDir={rootDir} onValidate={onValidate} />
+          <CodeEditor selectedFile={selectedFile} rootDir={rootDir} onValidate={onValidate} onChange={onChange} />
         )}
-        <Footer isLoading={isLoading} errors={errors} challengeStatus={errors.length === 0 ? 'success' : 'error'} />
+        <Footer
+          isLoading={isLoading}
+          errors={errors}
+          challengeStatus={challengeStatus}
+          goToNextChallenge={goToNextChallenge}
+        />
       </MainContent>
     </>
   );
@@ -100,7 +159,7 @@ const MainContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative; /* Ensure the footer is aligned to this container */
+  position: relative;
 `;
 
-export default Challenge;
+export default memo(Challenge);

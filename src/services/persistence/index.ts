@@ -1,15 +1,22 @@
 import localForage from 'localforage';
 import type { ChallengeMetadata, Challenge } from '../challenges';
 
+const dbName = 'type-challenges';
+
 const progressDb = localForage.createInstance({
-  name: 'type-challenges',
+  name: dbName,
   storeName: 'progress',
 });
 
 const initialDataDb = localForage.createInstance({
-  name: 'type-challenges',
+  name: dbName,
   storeName: 'initial-data',
 });
+
+export interface ChallengeProgress {
+  content: string;
+  completed: boolean;
+}
 
 export const saveChallengesMetadata = async (challengesMetadata: ChallengeMetadata[]) => {
   await initialDataDb.setItem('challenges-metadata', challengesMetadata);
@@ -27,20 +34,20 @@ export const getChallenge = async (id: Challenge['id']): Promise<Challenge | nul
   return await initialDataDb.getItem<Challenge>(id);
 }
 
-export const saveChallengeProgress = async (challengeId: string, content: string) => {
-  await progressDb.setItem(challengeId, content);
+export const saveChallengeProgress = async (challengeId: string, challenge: ChallengeProgress) => {
+  await progressDb.setItem(challengeId, challenge);
 };
 
-export const getChallengeProgress = async (challengeId: string): Promise<string | null> => {
-  return await progressDb.getItem<string>(challengeId);
+export const getChallengeProgress = async (challengeId: string): Promise<ChallengeProgress | null> => {
+  return await progressDb.getItem<ChallengeProgress>(challengeId);
 };
 
-export const getAllProgress = async (): Promise<Record<string, string>> => {
+export const getAllProgress = async (): Promise<Record<string, ChallengeProgress | null>> => {
   const keys = await progressDb.keys();
-  const progress: Record<string, string> = {};
+  const progress: Record<string, ChallengeProgress | null> = {};
 
   for (const key of keys) {
-    progress[key] = (await progressDb.getItem<string>(key)) || '';
+    progress[key] = (await progressDb.getItem<ChallengeProgress>(key)) || null;
   }
 
   return progress;

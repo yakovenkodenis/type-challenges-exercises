@@ -29,6 +29,7 @@
     "@locator/runtime": "^0.4.4",
     "@types/markdown-it": "^14",
     "@types/markdown-it-emoji": "^3",
+    "@types/node": "^22.10.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react-swc": "^3.5.0",

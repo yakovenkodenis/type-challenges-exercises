@@ -5,6 +5,7 @@ import { AiFillFileText } from 'react-icons/ai';
 
 function getIconHelper() {
   const cache = new Map<string, ReactNode>();
+
   cache.set('js', <SiJavascript color='#fbcb38' />);
   cache.set('jsx', <SiJavascript color='#fbcb38' />);
   cache.set('ts', <SiTypescript color='#378baa' />);

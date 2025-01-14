@@ -1,10 +1,13 @@
 // Modules
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
 import styled from '@emotion/styled';
-import { FaSignOutAlt, FaSignInAlt } from 'react-icons/fa';
+import { RiResetLeftLine } from "react-icons/ri";
 
 // Components
 import { FileTree } from '../file-tree';
+
+// Constants
+import { LevelIcons } from '../../constants/levels';
 
 // Context
 import { useChallenges } from '../../context/challenges';
@@ -13,17 +16,10 @@ import { useChallenges } from '../../context/challenges';
 import { Type, type File, type Directory } from '../../utils/file-manager';
 import { challengesMetadataToDir } from '../../utils/challenges-metadata-to-dir';
 
-type User = {
-  avatar: string;
-  email: string;
-};
-
 type Props = {
-  user: User | null;
   close: () => void;
-  onLogin: () => void;
-  onLogout: () => void;
   onSelectChallenge: (id: string) => void;
+  onResetChallenge: () => void;
 
   isOpen: boolean;
 };
@@ -42,15 +38,14 @@ const dummyDir: Directory = {
 
 export default function DrawerContainer(props: Props) {
   const {
-    user,
     isOpen,
     close = noop,
-    onLogin = noop,
-    onLogout = noop,
     onSelectChallenge = noop,
+    onResetChallenge = noop,
   } = props;
 
-  const { groupedChallengesMetadata } = useChallenges();
+  const { groupedChallengesMetadata, level, progressStatistics } = useChallenges();
+  const Icon = level ? LevelIcons[level.name] : LevelIcons.explorer;
 
   const [rootDir, setRootDir] = useState<Directory>(dummyDir);
   const [selectedFile, setSelectedFile] = useState<File | undefined>(undefined);
@@ -73,19 +68,31 @@ export default function DrawerContainer(props: Props) {
       {isOpen && <Backdrop onClick={close} />}
       <Drawer isOpen={isOpen}>
         <DrawerHeader>
-          {user ? (
-            <>
-              <Avatar src={user.avatar} alt='User Avatar' />
-              <Email>{user.email}</Email>
-              <ActionButton onClick={onLogout}>
-                <FaSignOutAlt /> Logout
-              </ActionButton>
-            </>
-          ) : (
-            <ActionButton onClick={onLogin}>
-              <FaSignInAlt /> Login
+          {level ? (
+            <Stats>
+              <Description>My current level:</Description>
+              <LevelIcon><Icon /></LevelIcon>
+              <LevelTitle>{level.label}</LevelTitle>
+              <Description>{level.description}</Description>
+              {level.nextLevelCriteria ? (
+                <NextLevelCriteria>
+                  <strong>For the next level:</strong> {level.nextLevelCriteria}
+                </NextLevelCriteria>
+              ) : null}
+              <ProgressTable>
+                {Object.entries(progressStatistics).map(([difficulty, count]) => (
+                  <Fragment key={difficulty}>
+                    <ProgressItem>{difficulty}: {count}</ProgressItem>
+                  </Fragment>
+                ))}
+              </ProgressTable>
+            </Stats>
+          ) : null}
+          <Row>
+            <ActionButton onClick={onResetChallenge}>
+              <RiResetLeftLine /> Reset current challenge
             </ActionButton>
-          )}
+          </Row>
         </DrawerHeader>
         <DrawerContent>
           <DrawerTitle>Challenges</DrawerTitle>
@@ -94,6 +101,7 @@ export default function DrawerContainer(props: Props) {
               rootDir={rootDir}
               onSelect={onSelect}
               selectedFile={selectedFile}
+              sortDirectories={false}
               overrideSubTreeStyle={{ 0: () => ({ marginLeft: '-16px' }) }}
             />
           ) : null}
@@ -136,17 +144,54 @@ const DrawerHeader = styled.div`
   border-bottom: 1px solid #3c3c3c;
 `;
 
-const Avatar = styled.img`
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+const Stats = styled.div`
+  text-align: center;
+  margin-bottom: 16px;
+`;
+
+const LevelIcon = styled.div`
+  svg {
+    width: 50px;
+    height: 50px;
+  }
+`;
+
+const LevelTitle = styled.h4`
+  font-size: 18px;
+  color: #d4d4d4;
+  margin-bottom: 8px;
+  margin-top: 8px;
+`;
+
+const Description = styled.p`
+  font-size: 12px;
+  color: #a6a6a6;
+  margin-bottom: 8px;
+  margin-top: 0;
+`;
+
+const NextLevelCriteria = styled.p`
+  font-size: 12px;
+  color: #a6a6a6;
   margin-bottom: 12px;
 `;
 
-const Email = styled.div`
-  font-size: 14px;
+const ProgressTable = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  font-size: 12px;
   color: #d4d4d4;
-  margin-bottom: 16px;
+  width: 100%;
+  text-align: center;
+`;
+
+const ProgressItem = styled.div`
+  padding: 4px 0;
+`;
+
+const Row = styled.div`
+  display: flex;
+  justify-content: space-around;
 `;
 
 const ActionButton = styled.button`
