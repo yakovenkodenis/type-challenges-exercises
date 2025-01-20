@@ -72,6 +72,7 @@ export const CodeEditor = ({ selectedFile, rootDir, onValidate, onChange }: Prop
       const libFiles = [
         'lib.d.ts',
         'lib.esnext.d.ts',
+        'lib.es2015.promise.d.ts',
       ];
     
       await Promise.all(
