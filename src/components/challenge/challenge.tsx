@@ -81,7 +81,7 @@ const Challenge: FC = () => {
 
   const onValidate: OnValidate = useCallback(async (markers) => {
     const errors = markers
-      .filter((marker) => !['6205', '6196'].includes(marker.code as string))
+      .filter((marker) => !['6205', '6196', '6133'].includes(marker.code as string))
       .map((marker) => `line ${marker.startLineNumber}: ${marker.message} (.${marker.resource.path})`);
 
     setErrors(errors);
